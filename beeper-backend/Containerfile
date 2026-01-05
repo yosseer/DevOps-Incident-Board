@@ -1,0 +1,26 @@
+# Builder stage
+FROM registry.ocp4.example.com:8443/ubi8/openjdk-17:1.12 AS builder
+
+# Copy all source files and set ownership
+COPY --chown=jboss:jboss . /home/jboss/
+
+# Set working directory
+WORKDIR /home/jboss
+
+# Build the application
+RUN mvn -s settings.xml package
+
+# Runtime stage
+FROM registry.ocp4.example.com:8443/ubi8/openjdk-17-runtime:1.12
+
+# Copy the JAR from builder stage
+COPY --from=builder /home/jboss/target/beeper-1.0.0.jar /deployments/beeper-1.0.0.jar
+
+# Set working directory
+WORKDIR /deployments
+
+# Expose port
+EXPOSE 8080
+
+# Start the application
+CMD ["java", "-jar", "beeper-1.0.0.jar"]
