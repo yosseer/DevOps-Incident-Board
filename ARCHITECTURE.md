@@ -1,405 +1,175 @@
-# 🏗️ Beeper Application Architecture
+﻿# DevOps Incident Board - Architecture
 
 ## System Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER BROWSER                             │
-│                    http://localhost:8080                         │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP
-                             │
-┌────────────────────────────▼────────────────────────────────────┐
-│                      BEEPER UI CONTAINER                         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              Nginx Web Server (Port 8080)                │  │
-│  │  - Serves React static files                             │  │
-│  │  - Proxies /api/* requests to backend                    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│     Image: beeper-ui:v1                                          │
-│     Network: beeper-frontend                                     │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP /api/*
-                             │ DNS: beeper-api
-┌────────────────────────────▼────────────────────────────────────┐
-│                     BEEPER API CONTAINER                         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │        Spring Boot Application (Port 8080)               │  │
-│  │  - REST API endpoints                                    │  │
-│  │  - Business logic                                        │  │
-│  │  - JPA/Hibernate ORM                                     │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│     Image: beeper-api:v1                                         │
-│     Networks: beeper-frontend + beeper-backend                   │
-│     Environment: DB_HOST=beeper-db                               │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ JDBC
-                             │ DNS: beeper-db
-┌────────────────────────────▼────────────────────────────────────┐
-│                   POSTGRESQL DB CONTAINER                        │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │         PostgreSQL 13 Database (Port 5432)               │  │
-│  │  - Database: beeper                                      │  │
-│  │  - Table: beeps (id, message, author, created_at)       │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│     Image: registry.ocp4.example.com:8443/rhel9/postgresql-13:1 │
-│     Network: beeper-backend                                      │
-│     Volume: beeper-data → /var/lib/pgsql/data                   │
-│     Environment: POSTGRESQL_USER=beeper, POSTGRESQL_PASSWORD,    │
-│                  POSTGRESQL_DATABASE=beeper                      │
-└─────────────────────────────────────────────────────────────────┘
-                             │
-                             ▼
-                 ┌──────────────────────┐
-                 │   beeper-data        │
-                 │   (Persistent Volume)│
-                 │   Stores DB files    │
-                 └──────────────────────┘
+### Standalone Testing Mode
 ```
 
-## Network Topology
+                         USER BROWSER                             
+                    file:///incident-board.html                   
+
+                              HTTP REST API
+                             
+
+                      MOCK API SERVER                             
+    
+                Express.js Server (Port 8080)                 
+    - GET /api/incidents                                       
+    - POST /api/incidents                                      
+    - PATCH /api/incidents/:id/status                          
+    - DELETE /api/incidents/:id                                
+    
+     File: mock-api-server.js                                     
+     Port: 8080                                                   
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                   beeper-frontend Network                         │
-│                        (DNS enabled)                              │
-│  ┌──────────────────┐              ┌─────────────────┐           │
-│  │   beeper-ui      │              │   beeper-api    │           │
-│  │   (Nginx/React)  │◄────────────►│  (Spring Boot)  │           │
-│  └──────────────────┘              └─────────────────┘           │
-└──────────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────────────────────────────────────────┐
-│                   beeper-backend Network                          │
-│                        (DNS enabled)                              │
-│  ┌──────────────────┐              ┌─────────────────┐           │
-│  │   beeper-api     │              │   beeper-db     │           │
-│  │  (Spring Boot)   │◄────────────►│  (PostgreSQL)   │           │
-│  └──────────────────┘              └─────────────────┘           │
-└──────────────────────────────────────────────────────────────────┘
+### Production Mode (Containerized)
+```
+
+                         USER BROWSER                             
+                    http://localhost:8080                         
+
+                              HTTP
+                             
+
+                      BEEPER UI CONTAINER                         
+    
+                Nginx Web Server (Port 8080)                  
+    - Serves incident-board.html + CSS                        
+    - Proxies /api/* requests to backend                      
+    
+     Image: beeper-ui:v1                                          
+     Network: beeper-frontend                                     
+
+                              HTTP /api/*
+                              DNS: beeper-api
+
+                     BEEPER API CONTAINER                         
+    
+          Spring Boot Application (Port 8080)                 
+    - REST API endpoints                                      
+    - Business logic                                          
+    - JPA/Hibernate ORM                                       
+    
+     Image: beeper-api:v1                                         
+     Networks: beeper-frontend + beeper-backend                   
+     Environment: DB_HOST=beeper-db                               
+
+                              JDBC
+                              DNS: beeper-db
+
+                   POSTGRESQL DB CONTAINER                        
+    
+           PostgreSQL 13 Database (Port 5432)                 
+    - Database: beeper                                        
+    - Table: incidents                                        
+    
+     Network: beeper-backend                                      
+     Volume: beeper-data  /var/lib/pgsql/data                   
+
+```
+
+## Component Breakdown
+
+### Frontend (incident-board.html)
+```
+
+                     incident-board.html                          
+   
+    SUMMARY STATISTICS                                         
+    [Total] [Critical] [High] [Medium] [Low]                  
+   
+     
+    ACTIVE INCIDENTS     RESOLVED INCIDENTS                  
+    - Status dropdown     - Resolver name                    
+    - Color coding        - Resolution comments              
+    - Resolve button      - 24h countdown timer              
+      - Delete/Reopen buttons            
+     
+    NEW INCIDENT FORM                                          
+    - Severity select                                          
+    - Title input                                              
+    - Description                                              
+                                            
+   
+    ANALYTICS DASHBOARD                                        
+    [Incidents Over Time Chart] [Employee of Month Trophy]    
+    [Resolution Leaderboard Chart]                            
+   
+
 ```
 
 ## Data Flow Diagram
 
-### Creating a New Beep
-
+### Creating a New Incident
 ```
 1. User fills form in browser
-         │
-         ▼
-2. React sends POST /api/beeps
-         │
-         ▼
-3. Nginx proxies to beeper-api:8080/api/beeps
-         │
-         ▼
-4. Spring Boot BeepController receives request
-         │
-         ▼
-5. BeepController validates & saves via BeepRepository
-         │
-         ▼
-6. JPA/Hibernate persists to PostgreSQL
-         │
-         ▼
-7. Database writes to beeper-data volume
-         │
-         ▼
-8. Success response returns to UI
-         │
-         ▼
-9. React updates beep list
-         │
-         ▼
-10. User sees new beep displayed
+         
+         
+2. JavaScript sends POST /api/incidents
+         
+         
+3. Mock API receives request, adds to array
+         
+         
+4. Response returns new incident with ID
+         
+         
+5. UI updates incident list and statistics
 ```
 
-### Fetching Beeps
-
+### Resolving an Incident
 ```
-1. Component mounts → useEffect triggers
-         │
-         ▼
-2. React sends GET /api/beeps
-         │
-         ▼
-3. Nginx proxies to beeper-api:8080/api/beeps
-         │
-         ▼
-4. BeepController.getAllBeeps() called
-         │
-         ▼
-5. BeepRepository.findAllByOrderByCreatedAtDesc()
-         │
-         ▼
-6. JPA generates SQL query
-         │
-         ▼
-7. PostgreSQL returns sorted beeps
-         │
-         ▼
-8. JSON response to UI
-         │
-         ▼
-9. React renders BeepList component
-```
-
-## Container Build Flow
-
-### Backend Build (Multi-stage)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 1: BUILDER                                             │
-│ FROM ubi8/openjdk-17:1.12                                    │
-│                                                              │
-│  1. Copy source files → /home/jboss                          │
-│  2. Run: mvn -s settings.xml package                         │
-│  3. Produces: target/beeper-1.0.0.jar (25MB)                 │
-│                                                              │
-│  Total stage size: ~500MB (includes Maven, build tools)      │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ COPY JAR
-┌──────────────────────────▼───────────────────────────────────┐
-│ Stage 2: RUNTIME                                             │
-│ FROM ubi8/openjdk-17-runtime:1.12                            │
-│                                                              │
-│  1. Copy: beeper-1.0.0.jar → /deployments                    │
-│  2. CMD: java -jar beeper-1.0.0.jar                          │
-│                                                              │
-│  Final image size: ~400MB (Java runtime + app only)          │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### Frontend Build (Multi-stage)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 1: BUILDER                                             │
-│ FROM ubi9/nodejs-22:1                                        │
-│                                                              │
-│  1. Copy source files → /opt/app-root/src                    │
-│  2. Run: npm install (downloads dependencies)                │
-│  3. Run: npm run build (Vite builds to dist/)                │
-│  4. Produces: optimized HTML/JS/CSS (2-5MB)                  │
-│                                                              │
-│  Total stage size: ~800MB (includes Node, npm, deps)         │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ COPY dist/
-┌──────────────────────────▼───────────────────────────────────┐
-│ Stage 2: RUNTIME                                             │
-│ FROM ubi8/nginx-118:1                                        │
-│                                                              │
-│  1. Copy: nginx.conf → /etc/nginx/                           │
-│  2. Copy: dist/ → /usr/share/nginx/html                      │
-│  3. CMD: nginx -g "daemon off;"                              │
-│                                                              │
-│  Final image size: ~150MB (Nginx + static files only)        │
-└──────────────────────────────────────────────────────────────┘
-```
-
-## API Endpoints
-
-### REST API Routes
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                      Beeper API Endpoints                       │
-├────────┬───────────────────────┬──────────────────────────────┤
-│ Method │ Endpoint              │ Description                   │
-├────────┼───────────────────────┼──────────────────────────────┤
-│ GET    │ /api/beeps            │ Get all beeps (newest first)  │
-│ GET    │ /api/beeps/{id}       │ Get specific beep by ID       │
-│ POST   │ /api/beeps            │ Create new beep               │
-│ DELETE │ /api/beeps/{id}       │ Delete beep by ID             │
-│ GET    │ /api/beeps/health     │ Health check endpoint         │
-└────────┴───────────────────────┴──────────────────────────────┘
-```
-
-### Request/Response Examples
-
-**POST /api/beeps**
-```json
-// Request Body
-{
-  "message": "Hello from Beeper!",
-  "author": "John Doe"
-}
-
-// Response (201 Created)
-{
-  "id": 1,
-  "message": "Hello from Beeper!",
-  "author": "John Doe",
-  "createdAt": "2026-01-05T10:30:00"
-}
-```
-
-**GET /api/beeps**
-```json
-// Response (200 OK)
-[
-  {
-    "id": 2,
-    "message": "Latest beep",
-    "author": "Jane Smith",
-    "createdAt": "2026-01-05T10:31:00"
-  },
-  {
-    "id": 1,
-    "message": "Hello from Beeper!",
-    "author": "John Doe",
-    "createdAt": "2026-01-05T10:30:00"
-  }
-]
-```
-
-## Database Schema
-
-```sql
--- PostgreSQL Database: beeper
-
-Table: beeps
-┌────────────┬──────────────┬──────────────┬─────────────────────┐
-│ Column     │ Type         │ Constraints  │ Description         │
-├────────────┼──────────────┼──────────────┼─────────────────────┤
-│ id         │ BIGSERIAL    │ PRIMARY KEY  │ Auto-increment ID   │
-│ message    │ VARCHAR(280) │ NOT NULL     │ Beep message text   │
-│ author     │ VARCHAR(255) │ NOT NULL     │ Author name         │
-│ created_at │ TIMESTAMP    │ NOT NULL     │ Creation timestamp  │
-└────────────┴──────────────┴──────────────┴─────────────────────┘
-```
-
-## Component Hierarchy (React)
-
-```
-App.jsx (Main Container)
-│
-├── BeepForm.jsx (Create new beeps)
-│   ├── Form inputs (author, message)
-│   ├── Validation
-│   └── Submit handler
-│
-└── BeepList.jsx (Display beeps)
-    │
-    └── BeepItem.jsx (Individual beep) [multiple instances]
-        ├── Author info
-        ├── Timestamp
-        ├── Message content
-        └── Delete button
-```
-
-## Port Mapping
-
-```
-Host Machine                Container
-─────────────              ──────────────────
-                           
-localhost:8080  ────────►  beeper-ui:8080
-                           │
-                           └─► beeper-api:8080
-                                │
-                                └─► beeper-db:5432
-```
-
-## Volume Persistence
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                Container Lifecycle                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Container Created                                           │
-│         │                                                    │
-│         ▼                                                    │
-│  Container Running ────► Writes data to /var/lib/pgsql/data │
-│         │                           │                        │
-│         │                           ▼                        │
-│         │                  beeper-data volume (on host)      │
-│         │                           │                        │
-│         ▼                           │                        │
-│  Container Stopped                  │                        │
-│         │                           │                        │
-│         ▼                           │                        │
-│  Container Removed                  │                        │
-│         │                           │                        │
-│         ▼                           ▼                        │
-│  New Container Created ────► Mounts existing volume          │
-│         │                           │                        │
-│         ▼                           ▼                        │
-│  Data Still Available! ◄──── Reads from volume              │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+1. User clicks status dropdown, selects "Resolved"
+         
+         
+2. Resolution modal opens (resolver name required)
+         
+         
+3. User enters name and optional comment
+         
+         
+4. PATCH /api/incidents/:id/status sent
+         
+         
+5. API updates incident with resolvedBy, resolutionComment, resolvedAt
+         
+         
+6. UI moves incident to Resolved section
+         
+         
+7. Analytics charts update (Employee of Month recalculated)
 ```
 
 ## Technology Stack
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                     │
-│  React 18 | Vite 5 | Modern CSS | Axios                  │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-┌─────────────────────▼────────────────────────────────────┐
-│                   WEB SERVER LAYER                        │
-│  Nginx 1.18 | Reverse Proxy | Static File Serving        │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-┌─────────────────────▼────────────────────────────────────┐
-│                  APPLICATION LAYER                        │
-│  Spring Boot 2.7 | Spring Web | Spring Data JPA          │
-│  Java 17 | Maven 3                                        │
-└─────────────────────┬────────────────────────────────────┘
-                      │
-┌─────────────────────▼────────────────────────────────────┐
-│                     DATA LAYER                            │
-│  PostgreSQL 13 | Hibernate ORM | JDBC                     │
-└──────────────────────────────────────────────────────────┘
-```
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Frontend | HTML5, CSS3, JS | Dashboard UI |
+| Charts | Chart.js v4 | Analytics visualization |
+| Fonts | Google Fonts (Roboto) | Typography |
+| API (Dev) | Express.js | Mock backend |
+| API (Prod) | Spring Boot | Production backend |
+| Database | PostgreSQL | Persistent storage |
+| Containers | Podman/Docker | Deployment |
 
-## Deployment Workflow
+## File Structure
 
 ```
-1. Development
-   └─► Write code in VS Code on Windows
+Cloud_Project/
+ beeper-ui/
+    incident-board.html    # Main dashboard
+    incident-board.css     # Complete styling
+    nginx.conf             # Production config
+    Containerfile          # Docker build
 
-2. Version Control
-   └─► Push to GitHub
+ beeper-backend/
+    src/main/java/...      # Java source
+    pom.xml                # Maven config
+    Containerfile          # Docker build
 
-3. Clone to Lab
-   └─► git clone on RHEL workstation
-
-4. Build Images
-   ├─► Backend: Maven build → JAR → Docker image
-   └─► Frontend: npm build → static files → Docker image
-
-5. Create Infrastructure
-   ├─► Create networks (beeper-backend, beeper-frontend)
-   └─► Create volume (beeper-data)
-
-6. Deploy Containers
-   ├─► Start PostgreSQL
-   ├─► Start Backend API
-   └─► Start Frontend UI
-
-7. Verify
-   ├─► Check containers: podman ps
-   ├─► Test API: curl localhost:8080/api/beeps/health
-   └─► Test UI: Open browser to localhost:8080
-
-8. Test Persistence
-   ├─► Create beep via UI
-   ├─► Restart containers
-   └─► Verify data persists
+ mock-api-server.js         # Express mock API
+ README.md                  # Project docs
+ deploy.sh                  # Deployment script
 ```
-
----
-
-**This architecture demonstrates:**
-- ✅ Microservices architecture
-- ✅ Container orchestration
-- ✅ Multi-stage builds
-- ✅ Network segmentation
-- ✅ Data persistence
-- ✅ REST API design
-- ✅ Modern frontend/backend separation

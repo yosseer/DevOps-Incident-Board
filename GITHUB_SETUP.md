@@ -1,4 +1,4 @@
-# GitHub Repository Setup Guide
+﻿# GitHub Repository Setup Guide
 
 ## Step 1: Initialize Git Repository Locally
 
@@ -15,7 +15,7 @@ git init
 git add .
 
 # Create initial commit
-git commit -m "Initial commit: Beeper application - DO188 comprehensive review lab"
+git commit -m "Initial commit: DevOps Incident Board with Analytics Dashboard"
 ```
 
 ## Step 2: Create GitHub Repository
@@ -23,8 +23,8 @@ git commit -m "Initial commit: Beeper application - DO188 comprehensive review l
 ### Option A: Using GitHub Web Interface
 
 1. Go to https://github.com/new
-2. Repository name: `beeper-do188-lab` (or your preferred name)
-3. Description: `Full-stack containerized application for Red Hat DO188 comprehensive review - Spring Boot + React + PostgreSQL`
+2. Repository name: `devops-incident-board` (or your preferred name)
+3. Description: `DevOps Incident Management System with Analytics Dashboard, Employee of the Month, and Resolution Tracking`
 4. Choose visibility: **Public** (recommended for portfolio) or **Private**
 5. **DO NOT** initialize with README, .gitignore, or license (we already have these)
 6. Click "Create repository"
@@ -36,7 +36,7 @@ git commit -m "Initial commit: Beeper application - DO188 comprehensive review l
 gh auth login
 
 # Create repository
-gh repo create beeper-do188-lab --public --source=. --remote=origin --push
+gh repo create devops-incident-board --public --source=. --remote=origin --push
 ```
 
 ## Step 3: Connect Local Repository to GitHub
@@ -45,7 +45,7 @@ If you used Option A (web interface), run these commands:
 
 ```powershell
 # Add remote origin (replace 'yosseer' with your GitHub username)
-git remote add origin https://github.com/yosseer/beeper-do188-lab.git
+git remote add origin https://github.com/yosseer/devops-incident-board.git
 
 # Verify remote
 git remote -v
@@ -57,32 +57,32 @@ git push -u origin main
 
 ## Step 4: Verify Upload
 
-1. Go to your repository URL: `https://github.com/yosseer/beeper-do188-lab`
+1. Go to your repository URL: `https://github.com/yosseer/devops-incident-board`
 2. Verify all files are present
 3. Check that README.md displays correctly
 
 ## Step 5: Add Repository Topics (Optional but Recommended)
 
 On your GitHub repository page:
-1. Click on the gear icon ⚙️ next to "About"
+1. Click on the gear icon  next to "About"
 2. Add topics:
-   - `red-hat`
-   - `do188`
-   - `spring-boot`
-   - `react`
-   - `podman`
-   - `containers`
-   - `postgresql`
+   - `devops`
+   - `incident-management`
+   - `analytics-dashboard`
+   - `chart-js`
+   - `express-js`
+   - `html5`
+   - `css3`
+   - `javascript`
+   - `dark-theme`
    - `full-stack`
-   - `containerization`
-   - `multi-stage-build`
 
 ## Step 6: Enable GitHub Pages (Optional)
 
 If you want to host documentation:
-1. Go to Settings → Pages
+1. Go to Settings  Pages
 2. Source: Deploy from a branch
-3. Branch: main → /docs (or root)
+3. Branch: main  /docs (or root)
 4. Click Save
 
 ## Future Updates
@@ -103,22 +103,25 @@ git commit -m "Your commit message here"
 git push
 ```
 
-## Clone Repository on Linux (DO188 Lab)
+## Clone Repository on Another Machine
 
-To use this repository in the DO188 lab environment:
+To use this repository on another machine:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yosseer/beeper-do188-lab.git
+git clone https://github.com/yosseer/devops-incident-board.git
 
 # Navigate to the directory
-cd beeper-do188-lab
+cd devops-incident-board
 
-# Make scripts executable
-chmod +x deploy.sh cleanup.sh
+# Install dependencies
+npm install
 
-# Run deployment
-./deploy.sh
+# Start the API server
+node mock-api-server.js
+
+# Open the dashboard in browser
+# beeper-ui/incident-board.html
 ```
 
 ## Useful Git Commands
@@ -148,16 +151,18 @@ git checkout -- filename
 Your GitHub repository will contain:
 
 ```
-beeper-do188-lab/
-├── beeper-backend/       # Spring Boot API
-├── beeper-ui/           # React Frontend
-├── README.md            # Main documentation
-├── QUICKSTART.md        # Quick start guide
-├── GITHUB_SETUP.md      # This file
-├── LICENSE              # MIT License
-├── .gitignore           # Git ignore rules
-├── deploy.sh            # Deployment script
-└── cleanup.sh           # Cleanup script
+devops-incident-board/
+ beeper-ui/
+    incident-board.html    # Main dashboard
+    incident-board.css     # Styling
+ mock-api-server.js         # Express.js API
+ package.json               # Node.js dependencies
+ README.md                  # Main documentation
+ QUICKSTART.md              # Quick start guide
+ GITHUB_SETUP.md            # This file
+ TESTING_GUIDE.md           # Testing instructions
+ IMPLEMENTATION_GUIDE.md    # Implementation details
+ LICENSE                    # MIT License
 ```
 
 ## Troubleshooting
@@ -205,24 +210,24 @@ git push origin main
 
 After pushing to GitHub:
 
-1. ✅ Add a detailed README badge for build status (if using CI/CD)
-2. ✅ Star your own repository for easy access
-3. ✅ Share the repository link on your profile
-4. ✅ Add it to your resume/portfolio
-5. ✅ Consider adding GitHub Actions for automated testing
+1.  Star your own repository for easy access
+2.  Share the repository link on your profile
+3.  Add it to your resume/portfolio
+4.  Consider adding GitHub Actions for automated testing
+5.  Add screenshots to README for visual appeal
 
 ## Example Repository URL
 
 Once created, your repository will be accessible at:
 ```
-https://github.com/yosseer/beeper-do188-lab
+https://github.com/yosseer/devops-incident-board
 ```
 
 And can be cloned with:
 ```bash
-git clone https://github.com/yosseer/beeper-do188-lab.git
+git clone https://github.com/yosseer/devops-incident-board.git
 ```
 
 ---
 
-**Need help?** Check [GitHub's documentation](https://docs.github.com/) or run `git help` for more information.
+*DevOps Incident Management Board - GitHub Setup Guide*

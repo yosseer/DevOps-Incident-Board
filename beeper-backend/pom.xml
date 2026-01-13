@@ -6,12 +6,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.redhat.training</groupId>
-    <artifactId>beeper</artifactId>
+    <artifactId>incident-board</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>Beeper API</name>
-    <description>Spring Boot API for Beeper Application</description>
+    <name>Incident Board API</name>
+    <description>Spring Boot API for DevOps Incident Management System</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -60,7 +60,7 @@
     </dependencies>
 
     <build>
-        <finalName>beeper-${project.version}</finalName>
+        <finalName>incident-board-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
