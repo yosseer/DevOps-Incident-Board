@@ -97,7 +97,25 @@ node mock-api-server.js
 Start-Process "beeper-ui\incident-board.html"
 ```
 
-### Option 2: Containerized Deployment
+### Option 2: Deploy to OpenShift (Production)
+
+```powershell
+# Navigate to OpenShift deployment directory
+cd openshift
+
+# Login to your OpenShift cluster
+oc login --server=<your-openshift-server> -u <username> -p <password>
+
+# Run the automated deployment
+.\deploy.ps1
+
+# Get your frontend URL
+oc get routes -n incident-board
+```
+
+**For detailed OpenShift deployment instructions, see [openshift/README.md](./openshift/README.md)**
+
+### Option 3: Local Containerized Deployment
 
 ```bash
 # Make the script executable
@@ -156,11 +174,74 @@ Cloud_Project/
     pom.xml                       # Maven dependencies
     Containerfile                 # Multi-stage build
 
+ openshift/                        # OpenShift deployment ✨ NEW
+    *.yaml                        # Kubernetes manifests (6 files)
+    deploy.sh                     # Automated bash deployment
+    deploy.ps1                    # Automated PowerShell deployment
+    README.md                     # Deployment guide
+    QUICKSTART.md                 # 60-second quick start
+    DEPLOYMENT_GUIDE.md           # Detailed instructions
+    VERIFICATION_CHECKLIST.md     # Post-deployment verification
+    TROUBLESHOOTING.md            # Issue resolution guide
+    WINDOWS_GUIDE.md              # Windows-specific setup
+    SUMMARY.md                    # Quick reference
+    INDEX.md                      # Documentation index
+
  mock-api-server.js                # Express.js mock API for testing
  deploy.sh                         # Automated deployment script
  cleanup.sh                        # Cleanup script
  README.md                         # This file
 ```
+
+## Deployment Options
+
+### 🚀 Production Deployment: OpenShift/Kubernetes
+
+**Complete microservices deployment with:**
+- Isolated containers for each service (Frontend, Backend, Database)
+- Kubernetes orchestration with automatic scaling
+- Persistent storage for database
+- Internal service discovery via DNS
+- External HTTPS access via Route
+- Health checks and auto-recovery
+- Production-ready security settings
+
+**Get started:**
+1. Read [openshift/README.md](./openshift/README.md) - Overview
+2. Follow [openshift/QUICKSTART.md](./openshift/QUICKSTART.md) - 60-second setup
+3. Use [openshift/DEPLOYMENT_GUIDE.md](./openshift/DEPLOYMENT_GUIDE.md) - Full guide
+4. Verify with [openshift/VERIFICATION_CHECKLIST.md](./openshift/VERIFICATION_CHECKLIST.md)
+
+**Windows users:** See [openshift/WINDOWS_GUIDE.md](./openshift/WINDOWS_GUIDE.md)
+
+**Troubleshooting:** [openshift/TROUBLESHOOTING.md](./openshift/TROUBLESHOOTING.md)
+
+### 🏗️ Docker Containerization
+
+```bash
+# Build frontend image
+cd beeper-ui
+docker build -f Containerfile -t incident-board-frontend:latest .
+
+# Build backend image
+cd ../beeper-backend
+docker build -f Containerfile -t incident-board-backend:latest .
+
+# Run containers
+docker run -d -p 8080:8080 --name frontend incident-board-frontend
+docker run -d -p 8081:8080 --name backend incident-board-backend
+```
+
+### 🧪 Local Testing
+
+```powershell
+# Start mock API server
+node mock-api-server.js
+
+# Open UI
+Start-Process "beeper-ui\incident-board.html"
+```
+
 
 ## Key Files
 
