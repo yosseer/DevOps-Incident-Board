@@ -14,11 +14,11 @@ spec:
       ref: main
     contextDir: backend/api
   strategy:
-    type: Source
-    sourceStrategy:
-      from:
-        kind: ImageStreamTag
-        name: "maven:3.9.2-jdk-17"  
+  type: Source
+  sourceStrategy:
+    from:
+      kind: DockerImage
+      name: "maven:3.9.2-jdk-17"   
   output:
     to:
       kind: ImageStreamTag
