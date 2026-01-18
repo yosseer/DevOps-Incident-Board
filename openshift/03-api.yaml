@@ -2,17 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  namespace: incident-board
+  namespace: devops-incident-board
   labels:
     app: api
     tier: backend
 spec:
-  replicas: 2
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+  replicas: 1
   selector:
     matchLabels:
       app: api
@@ -25,93 +20,56 @@ spec:
       initContainers:
       - name: wait-for-db
         image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z postgresql.incident-board.svc.cluster.local 5432; do echo waiting for db; sleep 2; done;']
-      
+        command:
+          - sh
+          - -c
+          - |
+            until nc -z postgresql 5432;
+            do echo "waiting for db"; sleep 2;
+            done
+
       containers:
       - name: api
-        image: quay.io/redhat-developer/java-demo:springboot-backend
+        image: image-registry.openshift-image-registry.svc:5000/devops-incident-board/api:latest
         imagePullPolicy: IfNotPresent
+
         ports:
         - containerPort: 8080
-          name: http
-          protocol: TCP
-        
+
         env:
-        - name: JAVA_OPTS
-          value: "-Xmx512m -Xms256m"
-        - name: SPRING_PROFILES_ACTIVE
-          valueFrom:
-            secretKeyRef:
-              name: incident-board-secrets
-              key: SPRING_PROFILES_ACTIVE
         - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgresql.incident-board.svc.cluster.local:5432/incidentboard"
+          value: jdbc:postgresql://postgresql:5432/incidentboard
         - name: SPRING_DATASOURCE_USERNAME
-          valueFrom:
-            configMapKeyRef:
-              name: incident-board-config
-              key: DB_USER
+          value: postgres
         - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
             secretKeyRef:
               name: incident-board-secrets
               key: DB_PASSWORD
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
-          value: "update"
-        - name: SPRING_APPLICATION_NAME
-          value: "incident-board-api"
+          value: update
         - name: SERVER_PORT
           value: "8080"
-        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-          value: "health,info,metrics"
-        
+
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            memory: 512Mi
+            cpu: 250m
           limits:
-            memory: "1Gi"
-            cpu: "500m"
-        
-        livenessProbe:
-          httpGet:
-            path: /api/incidents/health
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        
-        readinessProbe:
-          httpGet:
-            path: /api/incidents/health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 2
-        
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 1000
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+            memory: 1Gi
+            cpu: 500m
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: api
-  namespace: incident-board
-  labels:
-    app: api
+  namespace: devops-incident-board
 spec:
-  type: ClusterIP
   selector:
     app: api
   ports:
-  - port: 8080
-    targetPort: 8080
-    protocol: TCP
-    name: http
+    - port: 8080
+      targetPort: 8080
+
+
