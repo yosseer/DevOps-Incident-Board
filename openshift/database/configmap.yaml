@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  namespace: beeper
+  labels:
+    app: postgresql
+data:
+  # Database configuration
+  DB_NAME: beeper_db
+  DB_HOST: postgresql
+  DB_PORT: "5432"
+  # PostgreSQL environment variables
+  POSTGRES_INITDB_ARGS: "-c max_connections=200 -c shared_buffers=256MB"
+  # Init SQL script to create application user and database
+  init.sql: |
+    -- Create application database
+    CREATE DATABASE beeper_db;
+    
+    -- Create application user
+    CREATE USER beeper WITH PASSWORD 'beeper_secure_password_123';
+    
+    -- Grant permissions
+    GRANT ALL PRIVILEGES ON DATABASE beeper_db TO beeper;
+    
+    -- Connect to the database and grant schema permissions
+    \c beeper_db
+    GRANT ALL ON SCHEMA public TO beeper;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO beeper;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO beeper;

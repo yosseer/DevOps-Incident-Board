@@ -1,0 +1,38 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: beeper-ui
+  namespace: beeper
+  labels:
+    app: beeper-ui
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/yosseer/DevOps-Incident-Board.git
+      ref: main
+    contextDir: beeper-ui
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: beeper-ui:latest
+  triggers:
+  - type: ConfigChange
+  - type: GitHub
+    github:
+      secret: github-webhook-secret
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: beeper-ui
+  namespace: beeper
+  labels:
+    app: beeper-ui
+spec:
+  lookupPolicy:
+    local: false
