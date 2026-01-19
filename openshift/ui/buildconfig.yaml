@@ -2,7 +2,7 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   name: beeper-ui
-  namespace: beeper
+  namespace: devops-incident-board-app
   labels:
     app: beeper-ui
 spec:
@@ -30,7 +30,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: beeper-ui
-  namespace: beeper
+  namespace: devops-incident-board-app
   labels:
     app: beeper-ui
 spec:

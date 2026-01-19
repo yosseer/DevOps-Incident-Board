@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgresql-pvc
-  namespace: beeper
+  namespace: devops-incident-board-app
   labels:
     app: postgresql
 spec:
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgresql
-  namespace: beeper
+  namespace: devops-incident-board-app
   labels:
     app: postgresql
 spec:
@@ -92,7 +92,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgresql
-  namespace: beeper
+  namespace: devops-incident-board-app
   labels:
     app: postgresql
 spec:

@@ -3,5 +3,5 @@ kind: Namespace
 metadata:
   name: devops-incident-board-app
   labels:
-    name: beeper
+    name: devops-incident-board-app
     description: "Beeper DevOps Incident Board Application"
