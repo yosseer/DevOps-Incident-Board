@@ -6,7 +6,6 @@ beeper-backend/mvnw.cmd
 
 # Node
 beeper-ui/node_modules/
-beeper-ui/dist/
 beeper-ui/.vite/
 beeper-ui/package-lock.json
 
