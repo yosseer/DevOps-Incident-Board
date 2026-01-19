@@ -14,7 +14,7 @@ WORKDIR /opt/app-root/src
 RUN npm install && npm run build
 
 # Runtime stage
-FROM registry.ocp4.example.com:8443/ubi8/nginx-118:1
+FROM image-registry.openshift-image-registry.svc:5000/openshift/nginx:1.16-el8
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
