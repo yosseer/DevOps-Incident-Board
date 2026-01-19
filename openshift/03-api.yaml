@@ -29,18 +29,17 @@ metadata:
     tier: backend
     app.kubernetes.io/part-of: incident-board
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     app: api
-    tier: backend
   strategy:
     type: Rolling
     rollingParams:
       updatePeriodSeconds: 1
       intervalSeconds: 1
       timeoutSeconds: 600
-      maxSurge: 25%
-      maxUnavailable: 25%
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
