@@ -1,5 +1,5 @@
 # Builder stage
-FROM registry.ocp4.example.com:8443/ubi8/openjdk-17:1.12 AS builder
+FROM registry.access.redhat.com/ubi8/openjdk-11:1.13 AS builder
 
 # Copy all source files and set ownership
 COPY --chown=jboss:jboss . /home/jboss/
@@ -11,7 +11,7 @@ WORKDIR /home/jboss
 RUN mvn -s settings.xml package
 
 # Runtime stage
-FROM registry.ocp4.example.com:8443/ubi8/openjdk-17-runtime:1.12
+FROM registry.access.redhat.com/ubi8/openjdk-11-runtime:1.13
 
 # Copy the JAR from builder stage
 COPY --from=builder /home/jboss/target/beeper-1.0.0.jar /deployments/beeper-1.0.0.jar
