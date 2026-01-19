@@ -1,29 +1,19 @@
-# Builder stage
-FROM registry.ocp4.example.com:8443/ubi9/nodejs-22:1 AS builder
+FROM registry.ocp4.example.com:8443/ubi9/nodejs-22:1
 
-# Switch to root to ensure permissions
+# Run as root to avoid permission issues in some base images
 USER root
 
-# Copy source files
-COPY . /opt/app-root/src/
-
-# Set working directory
 WORKDIR /opt/app-root/src
 
-# Install dependencies and build
-RUN npm install && npm run build
+# Install production dependencies
+COPY package.json package-lock.json* ./
+RUN npm install --production
 
-# Runtime stage
-FROM registry.ocp4.example.com:8443/ubi8/nginx-118:1
+# Copy application files (static HTML/CSS/JS and server)
+COPY . .
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
-
-# Copy built application from builder stage
-COPY --from=builder /opt/app-root/src/dist /usr/share/nginx/html
-
-# Expose port
+# Expose port for the Node server
 EXPOSE 8080
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start the Node server which serves static files and proxies /api
+CMD ["node", "server.js"]
