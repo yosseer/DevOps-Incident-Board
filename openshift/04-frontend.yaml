@@ -1,3 +1,109 @@
+# ==================================================
+# NGINX CONFIGMAP
+# ==================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: incident-board
+data:
+  default.conf: |
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        sendfile on;
+        keepalive_timeout 65;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        access_log /var/log/nginx/access.log main;
+
+        server {
+            listen 8080;
+            server_name _;
+
+            root /usr/share/nginx/html;
+            index index.html;
+
+            # SPA frontend routing
+            location / {
+                try_files $uri $uri/ /index.html;
+            }
+
+            # Proxy API requests to backend
+            location /api/ {
+                proxy_pass http://api:8080/;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # Health endpoint for readiness/liveness
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+
+            # SPA fallback
+            error_page 404 /index.html;
+        }
+    }
+
+---
+# ==================================================
+# FRONTEND STATIC HTML
+# ==================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+  namespace: incident-board
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Incident Board</title>
+      <meta charset="UTF-8" />
+    </head>
+    <body>
+      <h1>DevOps Incident Board</h1>
+      <button onclick="loadIncidents()">Load Incidents</button>
+      <pre id="output"></pre>
+
+      <script>
+        function loadIncidents() {
+          fetch('/api/incidents')
+            .then(res => res.json())
+            .then(data => {
+              document.getElementById('output').textContent =
+                JSON.stringify(data, null, 2);
+            })
+            .catch(err => {
+              document.getElementById('output').textContent = err;
+            });
+        }
+      </script>
+    </body>
+    </html>
+
+---
+# ==================================================
+# FRONTEND DEPLOYMENT
+# ==================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,14 +114,14 @@ metadata:
     tier: presentation
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
   strategy:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
-  selector:
-    matchLabels:
-      app: frontend
   template:
     metadata:
       labels:
@@ -29,70 +135,59 @@ spec:
         ports:
         - containerPort: 8080
           name: http
-          protocol: TCP
-        
+
         volumeMounts:
         - name: nginx-config
           mountPath: /etc/nginx/conf.d
           readOnly: true
+
         - name: html-content
           mountPath: /usr/share/nginx/html
           readOnly: true
-        
-        env:
-        - name: API_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: incident-board-config
-              key: API_HOST
-        - name: API_PORT
-          valueFrom:
-            configMapKeyRef:
-              name: incident-board-config
-              key: API_PORT
-        
+
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: 128Mi
+            cpu: 100m
           limits:
-            memory: "256Mi"
-            cpu: "200m"
-        
+            memory: 256Mi
+            cpu: 200m
+
         livenessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        
+
         readinessProbe:
           httpGet:
-            path: /
+            path: /health
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 2
-        
+
         securityContext:
           runAsNonRoot: true
           runAsUser: 101
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - ALL
-      
+              - ALL
+
       volumes:
       - name: nginx-config
         configMap:
           name: nginx-config
+
       - name: html-content
         configMap:
           name: frontend-html
+
 ---
+# ==================================================
+# FRONTEND SERVICE
+# ==================================================
 apiVersion: v1
 kind: Service
 metadata:
@@ -105,26 +200,25 @@ spec:
   selector:
     app: frontend
   ports:
-  - port: 8080
+  - name: http
+    port: 8080
     targetPort: 8080
-    protocol: TCP
-    name: http
+
 ---
+# ==================================================
+# FRONTEND ROUTE
+# ==================================================
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: frontend
   namespace: incident-board
-  labels:
-    app: frontend
 spec:
   to:
     kind: Service
     name: frontend
-    weight: 100
   port:
-    targetPort: 8080
+    targetPort: http
   tls:
     termination: edge
     insecureEdgeTerminationPolicy: Redirect
-  wildcardPolicy: None

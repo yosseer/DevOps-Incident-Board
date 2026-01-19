@@ -1,24 +1,25 @@
-
-# Backend API BuildConfig
-
+# ==================================================
+# BACKEND API BUILDCONFIG
+# ==================================================
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   name: api
-  namespace: devops-incident-board
+  namespace: incident-board
 spec:
   source:
     type: Git
     git:
       uri: "https://github.com/yosseer/DevOps-Incident-Board.git"
       ref: main
-    contextDir: backend/api
+    contextDir: beeper-backend
   strategy:
     type: Source
     sourceStrategy:
       from:
         kind: ImageStreamTag
-        name: "maven:3.9.2-jdk-17"  
+        namespace: openshift
+        name: "maven:3.9.2-jdk-11"
   output:
     to:
       kind: ImageStreamTag
@@ -31,18 +32,20 @@ spec:
     - type: ImageChange
 
 ---
-
-# Backend API DeploymentConfig
-
+# ==================================================
+# BACKEND API DEPLOYMENTCONFIG
+# ==================================================
 apiVersion: apps.openshift.io/v1
 kind: DeploymentConfig
 metadata:
   name: api
-  namespace: devops-incident-board
+  namespace: incident-board
 spec:
   replicas: 1
   selector:
-    app: api
+    matchLabels:
+      app: api
+      tier: backend
   strategy:
     type: Rolling
   triggers:
@@ -68,24 +71,22 @@ spec:
           - sh
           - -c
           - |
-            until nc -z postgresql 5432;
-            do echo "waiting for db"; sleep 2;
-            done
+            timeout 60 sh -c 'until nc -z postgresql 5432; do echo "waiting for db"; sleep 2; done'
       containers:
       - name: api
-        image: image-registry.openshift-image-registry.svc:5000/devops-incident-board/api:latest
+        image: image-registry.openshift-image-registry.svc:5000/incident-board/api:latest
         ports:
           - containerPort: 8080
         env:
           - name: SPRING_DATASOURCE_URL
-            value: jdbc:postgresql://postgresql:5432/incident-board
+            value: jdbc:postgresql://postgresql:5432/incidentboard
           - name: SPRING_DATASOURCE_USERNAME
-            value: postgres
+            value: incident_user
           - name: SPRING_DATASOURCE_PASSWORD
             valueFrom:
               secretKeyRef:
                 name: incident-board-secrets
-                key: DB_PASSWORD   
+                key: DB_PASSWORD
           - name: SPRING_JPA_HIBERNATE_DDL_AUTO
             value: update
           - name: SERVER_PORT
@@ -99,30 +100,31 @@ spec:
             cpu: 500m
 
 ---
-
-# Backend API Service
-
+# ==================================================
+# BACKEND API SERVICE
+# ==================================================
 apiVersion: v1
 kind: Service
 metadata:
   name: api
-  namespace: devops-incident-board
+  namespace: incident-board
 spec:
   selector:
     app: api
+    tier: backend
   ports:
     - port: 8080
       targetPort: 8080
 
 ---
-
-# Backend API Route
-
+# ==================================================
+# BACKEND API ROUTE
+# ==================================================
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: api
-  namespace: devops-incident-board
+  namespace: incident-board
 spec:
   to:
     kind: Service
@@ -131,4 +133,4 @@ spec:
     targetPort: 8080
   tls:
     termination: edge
-
+    insecureEdgeTerminationPolicy: Redirect
