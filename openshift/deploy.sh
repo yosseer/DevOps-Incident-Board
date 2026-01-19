@@ -1,89 +1,76 @@
 #!/bin/bash
-
-# Beeper OpenShift Deployment Script
-# This script deploys the Beeper application to OpenShift
+# OpenShift Deployment Script for DevOps Incident Board
 
 set -e
 
-NAMESPACE="devops-incident-board-app"
-GITHUB_REPO="https://github.com/yosseer/DevOps-Incident-Board.git"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-echo "=================================================="
-echo "Deploying Beeper to OpenShift"
-echo "=================================================="
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}DevOps Incident Board - OpenShift Deploy${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo ""
 
-# Check if oc CLI is available
+# Check if oc is installed
 if ! command -v oc &> /dev/null; then
-    echo "ERROR: 'oc' CLI not found. Please install OpenShift CLI."
+    echo -e "${RED}Error: 'oc' CLI tool is not installed or not in PATH${NC}"
+    echo "Please install the OpenShift CLI: https://docs.openshift.com/container-platform/latest/cli_tools/openshift_cli/getting-started-cli.html"
     exit 1
 fi
 
-# Check if logged in to OpenShift
-if ! oc project &> /dev/null; then
-    echo "ERROR: Not logged into OpenShift. Run 'oc login' first."
-    exit 1
-fi
-
-echo ""
-echo "Step 1: Creating namespace..."
-oc apply -f config/namespace.yaml
-
-echo ""
-echo "Step 2: Switching to beeper namespace..."
-oc project $NAMESPACE
-
-echo ""
-echo "Step 3: Setting up PostgreSQL database..."
-oc apply -f database/secret.yaml
-oc apply -f database/configmap.yaml
-oc apply -f database/deployment.yaml
-
-echo ""
-echo "Step 4: Waiting for PostgreSQL to be ready..."
-oc wait --for=condition=Ready pod -l app=postgresql -n $NAMESPACE --timeout=300s 2>/dev/null || echo "PostgreSQL startup may still be in progress..."
-
-echo ""
-echo "Step 5: Deploying backend (BuildConfig and Deployment)..."
-oc apply -f backend/buildconfig.yaml
-oc apply -f backend/deployment.yaml
-
-echo ""
-echo "Step 6: Deploying UI (BuildConfig and Deployment)..."
-oc apply -f ui/buildconfig.yaml
-oc apply -f ui/deployment.yaml
-
-echo ""
-echo "Step 9: Waiting for backend build..."
-oc wait --for=condition=Complete build/beeper-backend-1 -n $NAMESPACE --timeout=600s 2>/dev/null || echo "Backend build may still be in progress..."
-
-echo "Waiting for UI build..."
-oc wait --for=condition=Complete build/beeper-ui-1 -n $NAMESPACE --timeout=600s 2>/dev/null || echo "UI build may still be in progress..."
-
-echo ""
-echo "Step 10: Deployment complete!"
-echo ""
-echo "=================================================="
-echo "Application URLs:"
-echo "=================================================="
+echo -e "${YELLOW}Step 1: Creating namespace and ConfigMap...${NC}"
+oc apply -f 00-namespace.yaml
+echo -e "${GREEN}✓ Namespace created${NC}"
 echo ""
 
-BACKEND_ROUTE=$(oc get route beeper-backend -n $NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending...")
-UI_ROUTE=$(oc get route beeper-ui -n $NAMESPACE -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending...")
+echo -e "${YELLOW}Step 2: Creating secrets...${NC}"
+oc apply -f 01-secrets.yaml
+echo -e "${GREEN}✓ Secrets created${NC}"
+echo ""
 
-echo "Backend API: http://$BACKEND_ROUTE"
-echo "UI:          http://$UI_ROUTE"
+echo -e "${YELLOW}Step 3: Deploying PostgreSQL database...${NC}"
+oc apply -f 02-postgresql.yaml
+echo -e "${GREEN}✓ PostgreSQL deployment started${NC}"
+echo -e "${YELLOW}Waiting for PostgreSQL to be ready (this may take 30-60 seconds)...${NC}"
+oc rollout status statefulset/postgresql -n incident-board --timeout=300s
+echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
 echo ""
-echo "Useful commands:"
-echo "  oc logs -f deployment/postgresql -n $NAMESPACE               # View PostgreSQL logs"
-echo "  oc logs -f deployment/beeper-backend -n $NAMESPACE           # View backend logs"
-echo "  oc logs -f deployment/beeper-ui -n $NAMESPACE                # View UI logs"
-echo "  oc describe pod -l app=postgresql -n $NAMESPACE              # Describe PostgreSQL pods"
-echo "  oc describe pod -l app=beeper-backend -n $NAMESPACE          # Describe backend pods"
-echo "  oc describe pod -l app=beeper-ui -n $NAMESPACE               # Describe UI pods"
-echo "  oc get all -n $NAMESPACE                               # View all resources"
+
+echo -e "${YELLOW}Step 4: Deploying backend API...${NC}"
+oc apply -f 03-api.yaml
+echo -e "${GREEN}✓ Backend API deployment started${NC}"
+echo -e "${YELLOW}Waiting for API to be ready (this may take 60-90 seconds)...${NC}"
+oc rollout status deployment/api -n incident-board --timeout=300s
+echo -e "${GREEN}✓ Backend API is ready${NC}"
 echo ""
-echo "To scale deployments:"
-echo "  oc scale deployment beeper-backend --replicas=3 -n $NAMESPACE"
-echo "  oc scale deployment beeper-ui --replicas=2 -n $NAMESPACE"
+
+echo -e "${YELLOW}Step 5: Deploying frontend...${NC}"
+oc apply -f 04-frontend.yaml
+oc apply -f 05-frontend-config.yaml
+echo -e "${GREEN}✓ Frontend deployment started${NC}"
+echo -e "${YELLOW}Waiting for frontend to be ready...${NC}"
+oc rollout status deployment/frontend -n incident-board --timeout=300s
+echo -e "${GREEN}✓ Frontend is ready${NC}"
 echo ""
-echo "=================================================="
+
+# Get the route hostname
+ROUTE_HOST=$(oc get route frontend -n incident-board -o jsonpath='{.spec.host}' 2>/dev/null || echo "pending...")
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${GREEN}Deployment Complete!${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo ""
+echo -e "${YELLOW}Access your application:${NC}"
+echo -e "${GREEN}Frontend: https://${ROUTE_HOST}${NC}"
+echo ""
+echo -e "${YELLOW}Useful oc commands:${NC}"
+echo "  View pods:       oc get pods -n incident-board"
+echo "  View services:   oc get services -n incident-board"
+echo "  View routes:     oc get routes -n incident-board"
+echo "  View logs:       oc logs -f deployment/api -n incident-board"
+echo "  Describe pod:    oc describe pod <pod-name> -n incident-board"
+echo ""
