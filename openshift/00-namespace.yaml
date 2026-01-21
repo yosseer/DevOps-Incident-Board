@@ -1,0 +1,15 @@
+# ============================================================================
+# OpenShift Namespace/Project Configuration
+# DevOps Incident Board
+# ============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: incident-board
+  labels:
+    app.kubernetes.io/name: incident-board
+    app.kubernetes.io/part-of: devops-incident-board
+    app.kubernetes.io/managed-by: oc
+  annotations:
+    openshift.io/description: "DevOps Incident Board - Incident Management System"
+    openshift.io/display-name: "Incident Board"

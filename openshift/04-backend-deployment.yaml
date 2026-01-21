@@ -1,0 +1,170 @@
+# ============================================================================
+# OpenShift Deployment - Backend (Spring Boot)
+# DevOps Incident Board
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incident-backend
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/name: incident-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: devops-incident-board
+    app.kubernetes.io/version: "1.0.0"
+  annotations:
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"incident-frontend"}]'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: incident-backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: incident-backend
+        app.kubernetes.io/name: incident-backend
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: devops-incident-board
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      # Use Docker Hub registry secret
+      imagePullSecrets:
+        - name: docker-registry-secret
+      
+      # Security context for OpenShift (SCC compliant)
+      securityContext:
+        runAsNonRoot: true
+      
+      containers:
+        - name: incident-backend
+          image: docker.io/yosserfhal/incident-backend:latest
+          imagePullPolicy: Always
+          
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+          
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: incident-backend-config
+            - secretRef:
+                name: incident-backend-secrets
+          
+          # Resource limits and requests
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          
+          # Liveness probe - checks if container is alive
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Readiness probe - checks if container is ready to serve traffic
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # Startup probe - gives app time to start
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          
+          # Volume mounts for H2 database persistence
+          volumeMounts:
+            - name: db-storage
+              mountPath: /app/data
+      
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: incident-db-pvc
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+
+---
+# ============================================================================
+# OpenShift Service - Backend
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: incident-backend
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/name: incident-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  type: ClusterIP
+  selector:
+    app: incident-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# ============================================================================
+# OpenShift Route - Backend (External Access)
+# ============================================================================
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: incident-backend
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/name: incident-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: devops-incident-board
+  annotations:
+    haproxy.router.openshift.io/timeout: "60s"
+spec:
+  to:
+    kind: Service
+    name: incident-backend
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

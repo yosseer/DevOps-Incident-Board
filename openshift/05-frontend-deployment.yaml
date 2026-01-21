@@ -1,0 +1,145 @@
+# ============================================================================
+# OpenShift Deployment - Frontend (Nginx)
+# DevOps Incident Board
+# ============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incident-frontend
+  namespace: incident-board-containers
+  labels:
+    app: incident-frontend
+    app.kubernetes.io/name: incident-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: devops-incident-board
+    app.kubernetes.io/version: "1.0.0"
+  annotations:
+    app.openshift.io/connects-to: '[{"apiVersion":"apps/v1","kind":"Deployment","name":"incident-backend"}]'
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: incident-frontend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: incident-frontend
+        app.kubernetes.io/name: incident-frontend
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: devops-incident-board
+    spec:
+      # Use Docker Hub registry secret
+      imagePullSecrets:
+        - name: docker-registry-secret
+      
+      # Security context for OpenShift (SCC compliant)
+      securityContext:
+        runAsNonRoot: true
+      
+      containers:
+        - name: incident-frontend
+          image: docker.io/yosserfhal/incident-frontend:latest
+          imagePullPolicy: Always
+          
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+          
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: incident-frontend-config
+          
+          # Resource limits and requests
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Readiness probe
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 10
+
+---
+# ============================================================================
+# OpenShift Service - Frontend
+# ============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: incident-frontend
+  namespace: incident-board-containers
+  labels:
+    app: incident-frontend
+    app.kubernetes.io/name: incident-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  type: ClusterIP
+  selector:
+    app: incident-frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+
+---
+# ============================================================================
+# OpenShift Route - Frontend (External Access)
+# This is the main entry point for users
+# ============================================================================
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: incident-frontend
+  namespace: incident-board-containers
+  labels:
+    app: incident-frontend
+    app.kubernetes.io/name: incident-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: devops-incident-board
+  annotations:
+    haproxy.router.openshift.io/timeout: "30s"
+spec:
+  to:
+    kind: Service
+    name: incident-frontend
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

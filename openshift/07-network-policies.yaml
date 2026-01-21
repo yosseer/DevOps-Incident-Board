@@ -1,0 +1,74 @@
+# ============================================================================
+# OpenShift Network Policies
+# DevOps Incident Board
+# Restrict network traffic for security
+# ============================================================================
+
+# Allow frontend to communicate with backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: incident-board-containers
+  labels:
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  podSelector:
+    matchLabels:
+      app: incident-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from frontend pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: incident-frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow traffic from OpenShift router (for external access)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow external traffic to frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-external-to-frontend
+  namespace: incident-board-containers
+  labels:
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  podSelector:
+    matchLabels:
+      app: incident-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from OpenShift router
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Default deny all ingress (optional - uncomment for strict security)
+# apiVersion: networking.k8s.io/v1
+# kind: NetworkPolicy
+# metadata:
+#   name: default-deny-ingress
+#   namespace: incident-board-containers
+# spec:
+#   podSelector: {}
+#   policyTypes:
+#     - Ingress

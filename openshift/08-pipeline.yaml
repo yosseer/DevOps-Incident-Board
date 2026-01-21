@@ -1,0 +1,241 @@
+# ============================================================================
+# OpenShift CI/CD Pipeline using Tekton
+# DevOps Incident Board
+# Build and Deploy Pipeline
+# ============================================================================
+
+# -----------------------------------------------------------------------------
+# Pipeline Definition
+# -----------------------------------------------------------------------------
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: incident-board-pipeline
+  namespace: incident-board
+  labels:
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  description: |
+    CI/CD Pipeline for DevOps Incident Board
+    - Clones source code
+    - Builds Docker images
+    - Pushes to Docker Hub
+    - Deploys to OpenShift
+  
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+      default: "https://github.com/yosseer/DevOps-Incident-Board.git"
+    - name: git-revision
+      type: string
+      description: Git branch/tag/commit
+      default: "main"
+    - name: image-registry
+      type: string
+      description: Docker registry
+      default: "docker.io/yosserfhal"
+    - name: image-tag
+      type: string
+      description: Image tag
+      default: "latest"
+  
+  workspaces:
+    - name: shared-workspace
+    - name: docker-credentials
+  
+  tasks:
+    # Task 1: Clone repository
+    - name: clone-repo
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Task 2: Build backend image
+    - name: build-backend
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - clone-repo
+      params:
+        - name: IMAGE
+          value: $(params.image-registry)/incident-backend:$(params.image-tag)
+        - name: DOCKERFILE
+          value: ./beeper-backend/Dockerfile
+        - name: CONTEXT
+          value: ./beeper-backend
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+
+    # Task 3: Build frontend image
+    - name: build-frontend
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      runAfter:
+        - clone-repo
+      params:
+        - name: IMAGE
+          value: $(params.image-registry)/incident-frontend:$(params.image-tag)
+        - name: DOCKERFILE
+          value: ./beeper-ui/Dockerfile
+        - name: CONTEXT
+          value: ./beeper-ui
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: docker-credentials
+
+    # Task 4: Deploy backend
+    - name: deploy-backend
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      runAfter:
+        - build-backend
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f openshift/04-backend-deployment.yaml
+            oc rollout restart deployment/incident-backend -n incident-board
+            oc rollout status deployment/incident-backend -n incident-board --timeout=300s
+      workspaces:
+        - name: manifest-dir
+          workspace: shared-workspace
+
+    # Task 5: Deploy frontend
+    - name: deploy-frontend
+      taskRef:
+        name: openshift-client
+        kind: ClusterTask
+      runAfter:
+        - build-frontend
+        - deploy-backend
+      params:
+        - name: SCRIPT
+          value: |
+            oc apply -f openshift/05-frontend-deployment.yaml
+            oc rollout restart deployment/incident-frontend -n incident-board
+            oc rollout status deployment/incident-frontend -n incident-board --timeout=300s
+      workspaces:
+        - name: manifest-dir
+          workspace: shared-workspace
+
+---
+# -----------------------------------------------------------------------------
+# PipelineRun - Trigger the pipeline
+# -----------------------------------------------------------------------------
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: incident-board-pipeline-run-
+  namespace: incident-board
+  labels:
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  pipelineRef:
+    name: incident-board-pipeline
+  params:
+    - name: git-url
+      value: "https://github.com/yosseer/DevOps-Incident-Board.git"
+    - name: git-revision
+      value: "main"
+    - name: image-registry
+      value: "docker.io/yosserfhal"
+    - name: image-tag
+      value: "latest"
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: docker-credentials
+      secret:
+        secretName: docker-registry-secret
+  timeout: "1h"
+
+---
+# -----------------------------------------------------------------------------
+# Trigger Template - For webhook integration
+# -----------------------------------------------------------------------------
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: incident-board-trigger-template
+  namespace: incident-board
+spec:
+  params:
+    - name: git-revision
+      default: main
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: incident-board-pipeline-run-
+      spec:
+        pipelineRef:
+          name: incident-board-pipeline
+        params:
+          - name: git-revision
+            value: $(tt.params.git-revision)
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+          - name: docker-credentials
+            secret:
+              secretName: docker-registry-secret
+
+---
+# -----------------------------------------------------------------------------
+# Event Listener - Webhook endpoint
+# -----------------------------------------------------------------------------
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: incident-board-listener
+  namespace: incident-board
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: github-push
+      bindings:
+        - ref: github-push-binding
+      template:
+        ref: incident-board-trigger-template
+
+---
+# -----------------------------------------------------------------------------
+# Trigger Binding - Extract data from webhook
+# -----------------------------------------------------------------------------
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: github-push-binding
+  namespace: incident-board
+spec:
+  params:
+    - name: git-revision
+      value: $(body.ref)

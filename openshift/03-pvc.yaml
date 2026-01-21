@@ -1,0 +1,22 @@
+# ============================================================================
+# OpenShift PersistentVolumeClaim - H2 Database Storage
+# DevOps Incident Board
+# ============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: incident-db-pvc
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/name: incident-backend
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # Use default storage class (OpenShift will assign appropriate storage)
+  # storageClassName: standard

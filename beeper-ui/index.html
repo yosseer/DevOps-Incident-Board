@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DevOps Incident Management Board - Track and manage production incidents in real-time">
+    <title>DevOps Incident Board</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="incident-board.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>DevOps Incident Board</h1>
+        <p>Track and manage production incidents in real-time</p>
+    </header>
+    
+    <div class="container">
+        <!-- Summary Statistics Section -->
+        <div class="summary-section" id="summary-section">
+            <div class="summary-card total">
+                <span class="summary-number" id="total-count">0</span>
+                <span class="summary-label">Total Incidents</span>
+            </div>
+            <div class="summary-card critical">
+                <span class="summary-number" id="critical-count">0</span>
+                <span class="summary-label">Critical</span>
+            </div>
+            <div class="summary-card high">
+                <span class="summary-number" id="high-count">0</span>
+                <span class="summary-label">High</span>
+            </div>
+            <div class="summary-card medium">
+                <span class="summary-number" id="medium-count">0</span>
+                <span class="summary-label">Medium</span>
+            </div>
+            <div class="summary-card low">
+                <span class="summary-number" id="low-count">0</span>
+                <span class="summary-label">Low</span>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <!-- Report New Incident Form -->
+            <div class="section">
+                <h2>Report New Incident</h2>
+                <form id="incident-form">
+                    <label for="reporter-name">Reporter Name (optional)</label>
+                    <input type="text" id="reporter-name" placeholder="Enter your name or leave blank" disabled>
+                    
+                    <div class="anonymous-toggle">
+                        <input type="checkbox" id="anonymous" checked>
+                        <label for="anonymous">Anonymous - Leave blank to report as Anonymous</label>
+                    </div>
+                    
+                    <label for="severity">Severity Level *</label>
+                    <select id="severity" required>
+                        <option value="LOW">LOW - Minor issue</option>
+                        <option value="MEDIUM" selected>MEDIUM - Service degradation</option>
+                        <option value="HIGH">HIGH - Service outage</option>
+                        <option value="CRITICAL">CRITICAL - Widespread impact</option>
+                    </select>
+                    
+                    <label for="title">Incident Title *</label>
+                    <input type="text" id="title" placeholder="e.g., Database connection timeout" maxlength="200" required>
+                    <div class="char-counter" id="title-counter">0/200 characters</div>
+                    
+                    <label for="description">Description (optional)</label>
+                    <textarea id="description" placeholder="Provide additional details about the incident..." maxlength="1000" rows="4"></textarea>
+                    <div class="char-counter" id="desc-counter">0/1000 characters</div>
+                    
+                    <button type="submit">Create Incident</button>
+                </form>
+            </div>
+
+            <!-- Active Incidents Section -->
+            <div class="section incident-list">
+                <h2>Active Incidents</h2>
+                <div id="incidents-container">
+                    <!-- Dynamic content will be loaded here -->
+                    <div class="loading">Loading incidents...</div>
+                </div>
+            </div>
+            
+            <!-- Resolved Incidents Section -->
+            <div class="section resolved-list">
+                <h2>Resolved Incidents</h2>
+                <p class="resolved-note">Auto-deleted after 24 hours</p>
+                <div id="resolved-container">
+                    <div class="no-resolved">No resolved incidents</div>
+                </div>
+            </div>
+
+        <!-- Resolution Modal -->
+        <div id="resolution-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>Resolve Incident</h3>
+                <p id="resolve-incident-title"></p>
+                <label for="resolver-name">Your Name *</label>
+                <input type="text" id="resolver-name" placeholder="Enter your name (required)" required>
+                <label for="resolution-comment">Resolution Comment (optional)</label>
+                <textarea id="resolution-comment" placeholder="Describe how the incident was resolved..." rows="4"></textarea>
+                <div class="modal-actions">
+                    <button class="btn-cancel" onclick="closeResolveModal()">Cancel</button>
+                    <button class="btn-resolve" onclick="confirmResolve()">Resolve Incident</button>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- Analytics Section -->
+        <div class="analytics-section">
+            <h2>Analytics Dashboard</h2>
+            
+            <!-- Incidents Over Time Chart -->
+            <div class="chart-container">
+                <h3>Incidents Over Time</h3>
+                <p class="chart-description">This chart helps teams identify incident spikes and system instability.</p>
+                <canvas id="incidentsOverTimeChart"></canvas>
+            </div>
+            
+            <!-- Employee of the Month Section -->
+            <div class="employee-section">
+                <div class="employee-of-month" id="employee-of-month">
+                    <div class="trophy-icon">TROPHY</div>
+                    <h3>Employee of the Month</h3>
+                    <p class="employee-name" id="top-resolver-name">--</p>
+                    <p class="employee-stats" id="top-resolver-stats">0 incidents resolved</p>
+                </div>
+                
+                <div class="chart-container leaderboard-chart">
+                    <h3>Resolution Leaderboard</h3>
+                    <p class="chart-description">Number of incidents resolved per employee</p>
+                    <canvas id="employeeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="contacts">
+            <a href="https://github.com/yosseer" class="contact-link" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/github.svg" alt="GitHub">
+            </a>
+            <a href="https://www.linkedin.com/in/yosser-fhal-3a57411b4/" class="contact-link" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/linkedin.svg" alt="LinkedIn">
+            </a>
+            <a href="mailto:fhalyosser@tbs.u-tunis.tn" class="contact-link" aria-label="Email">
+                <img src="https://cdn.jsdelivr.net/npm/simple-icons@v5/icons/gmail.svg" alt="Email">
+            </a>
+        </div>
+        <p class="built-with">Built with Spring Boot & Vanilla JS | DevOps Incident Management System</p>
+    </footer>
+    
+    <!-- Runtime configuration for OpenShift (injected by Nginx) -->
+    <script src="/config.js?v=4" onerror="console.log('No config.js found, using defaults')"></script>
+    
+    <script>
+        // API URL Configuration:
+        // - In OpenShift: Uses Nginx proxy at /api (set via config.js or defaults to relative path)
+        // - In Development: Uses localhost:8080
+        // - window.API_BASE_URL is set by config.js in OpenShift deployment
+        const API_BASE_URL = window.API_BASE_URL || (
+            window.location.hostname === 'localhost' 
+                ? 'http://localhost:8080/api' 
+                : '/api'
+        );
+        
+        console.log('API Base URL:', API_BASE_URL);
+        
+        let pendingResolveId = null;
+        let allIncidents = [];
+
+        // Character Counters
+        const titleInput = document.getElementById('title');
+        const descInput = document.getElementById('description');
+        const titleCounter = document.getElementById('title-counter');
+        const descCounter = document.getElementById('desc-counter');
+        
+        titleInput.addEventListener('input', () => {
+            titleCounter.textContent = `${titleInput.value.length}/200 characters`;
+        });
+        
+        descInput.addEventListener('input', () => {
+            descCounter.textContent = `${descInput.value.length}/1000 characters`;
+        });
+        
+        // Anonymous Toggle
+        const anonymousCheckbox = document.getElementById('anonymous');
+        const reporterName = document.getElementById('reporter-name');
+        
+        anonymousCheckbox.addEventListener('change', () => {
+            reporterName.disabled = anonymousCheckbox.checked;
+            if (anonymousCheckbox.checked) reporterName.value = '';
+        });
+        
+        // Update Summary Statistics with animation
+        function updateSummary(incidents) {
+            const activeIncidents = incidents.filter(i => i.status !== 'RESOLVED');
+            const counts = {
+                total: incidents.length,
+                critical: activeIncidents.filter(i => i.severity === 'CRITICAL').length,
+                high: activeIncidents.filter(i => i.severity === 'HIGH').length,
+                medium: activeIncidents.filter(i => i.severity === 'MEDIUM').length,
+                low: activeIncidents.filter(i => i.severity === 'LOW').length
+            };
+            
+            animateNumber('total-count', counts.total);
+            animateNumber('critical-count', counts.critical);
+            animateNumber('high-count', counts.high);
+            animateNumber('medium-count', counts.medium);
+            animateNumber('low-count', counts.low);
+        }
+
+        // Animate number change
+        function animateNumber(elementId, newValue) {
+            const element = document.getElementById(elementId);
+            const currentValue = parseInt(element.textContent) || 0;
+            if (currentValue !== newValue) {
+                element.classList.add('number-changed');
+                element.textContent = newValue;
+                setTimeout(() => element.classList.remove('number-changed'), 500);
+            }
+        }
+
+        // Open resolve modal
+        function openResolveModal(id, title) {
+            pendingResolveId = id;
+            document.getElementById('resolve-incident-title').textContent = title;
+            document.getElementById('resolution-comment').value = '';
+            document.getElementById('resolution-modal').classList.remove('hidden');
+        }
+
+        // Close resolve modal
+        function closeResolveModal() {
+            pendingResolveId = null;
+            document.getElementById('resolution-modal').classList.add('hidden');
+            document.getElementById('resolver-name').value = '';
+            document.getElementById('resolution-comment').value = '';
+        }
+
+        // Confirm resolution with comment
+        async function confirmResolve() {
+            if (!pendingResolveId) return;
+            
+            const comment = document.getElementById('resolution-comment').value;
+            const resolverName = document.getElementById('resolver-name').value.trim();
+            
+            // Validate resolver name is provided
+            if (!resolverName) {
+                alert('Please enter your name to resolve this incident.');
+                document.getElementById('resolver-name').focus();
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents/${pendingResolveId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        status: 'RESOLVED',
+                        resolutionComment: comment,
+                        resolvedBy: resolverName,
+                        resolvedAt: new Date().toISOString()
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to resolve incident');
+                closeResolveModal();
+                loadIncidents();
+            } catch (error) {
+                console.error('Error resolving incident:', error);
+                alert('Failed to resolve incident.');
+            }
+        }
+
+        // Change Incident Status
+        async function changeStatus(id, newStatus) {
+            // If resolving, open modal for comment
+            if (newStatus === 'RESOLVED') {
+                const incident = allIncidents.find(i => i.id === id);
+                openResolveModal(id, incident ? incident.title : 'Incident');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (!response.ok) throw new Error('Failed to update status');
+                loadIncidents();
+            } catch (error) {
+                console.error('Error updating status:', error);
+                alert('Failed to update incident status.');
+            }
+        }
+
+        // Delete Incident (only for resolved)
+        async function deleteIncident(id) {
+            if (!confirm('Are you sure you want to delete this resolved incident?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete incident');
+                loadIncidents();
+            } catch (error) {
+                console.error('Error deleting incident:', error);
+                alert('Failed to delete incident.');
+            }
+        }
+
+        // Reopen a resolved incident
+        async function reopenIncident(id) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents/${id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'OPEN', resolutionComment: null, resolvedAt: null })
+                });
+                
+                if (!response.ok) throw new Error('Failed to reopen incident');
+                loadIncidents();
+            } catch (error) {
+                console.error('Error reopening incident:', error);
+                alert('Failed to reopen incident.');
+            }
+        }
+
+        // Calculate time remaining until auto-delete
+        function getTimeRemaining(resolvedAt) {
+            if (!resolvedAt) return 'Unknown';
+            const resolvedTime = new Date(resolvedAt).getTime();
+            const deleteTime = resolvedTime + (24 * 60 * 60 * 1000); // 24 hours
+            const remaining = deleteTime - Date.now();
+            
+            if (remaining <= 0) return 'Deleting soon...';
+            
+            const hours = Math.floor(remaining / (60 * 60 * 1000));
+            const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+            
+            if (hours > 0) return `${hours}h ${minutes}m remaining`;
+            return `${minutes}m remaining`;
+        }
+
+        // Check and auto-delete old resolved incidents
+        function checkAutoDelete(incidents) {
+            const now = Date.now();
+            incidents.forEach(incident => {
+                if (incident.status === 'RESOLVED' && incident.resolvedAt) {
+                    const resolvedTime = new Date(incident.resolvedAt).getTime();
+                    const deleteTime = resolvedTime + (24 * 60 * 60 * 1000);
+                    
+                    if (now >= deleteTime) {
+                        // Auto-delete
+                        fetch(`${API_BASE_URL}/incidents/${incident.id}`, { method: 'DELETE' })
+                            .then(() => loadIncidents())
+                            .catch(console.error);
+                    }
+                }
+            });
+        }
+
+        // Load Incidents
+        async function loadIncidents() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents`);
+                if (!response.ok) throw new Error('Failed to fetch incidents');
+                
+                const incidents = await response.json();
+                allIncidents = incidents;
+                
+                // Check for auto-delete
+                checkAutoDelete(incidents);
+                
+                // Separate active and resolved
+                const activeIncidents = incidents.filter(i => i.status !== 'RESOLVED');
+                const resolvedIncidents = incidents.filter(i => i.status === 'RESOLVED');
+                
+                // Update summary
+                updateSummary(incidents);
+                
+                // Update charts
+                updateCharts(incidents);
+                
+                // Render active incidents
+                const activeContainer = document.getElementById('incidents-container');
+                if (activeIncidents.length === 0) {
+                    activeContainer.innerHTML = '<div class="success no-incidents">No active incidents - All systems operational!</div>';
+                } else {
+                    activeContainer.innerHTML = activeIncidents.map(incident => {
+                        return `
+                            <div class="incident-item severity-${incident.severity.toLowerCase()}">
+                                <div class="incident-header">
+                                    <span class="severity-badge ${incident.severity.toLowerCase()}">${incident.severity}</span>
+                                    <strong class="incident-title">${incident.title}</strong>
+                                </div>
+                                <div class="incident-meta">
+                                    <span>By: ${incident.createdBy || 'Anonymous'}</span>
+                                </div>
+                                ${incident.description ? `<p class="incident-description">${incident.description}</p>` : ''}
+                                <div class="incident-actions">
+                                    <select class="status-select" onchange="changeStatus(${incident.id}, this.value)">
+                                        <option value="OPEN" ${incident.status === 'OPEN' ? 'selected' : ''}>Open</option>
+                                        <option value="INVESTIGATING" ${incident.status === 'INVESTIGATING' ? 'selected' : ''}>Investigating</option>
+                                        <option value="RESOLVED">Mark Resolved</option>
+                                    </select>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                // Render resolved incidents
+                const resolvedContainer = document.getElementById('resolved-container');
+                if (resolvedIncidents.length === 0) {
+                    resolvedContainer.innerHTML = '<div class="no-resolved">No resolved incidents</div>';
+                } else {
+                    resolvedContainer.innerHTML = resolvedIncidents.map(incident => {
+                        const timeRemaining = getTimeRemaining(incident.resolvedAt);
+                        return `
+                            <div class="incident-item resolved">
+                                <div class="incident-header">
+                                    <span class="severity-badge resolved">RESOLVED</span>
+                                    <strong class="incident-title resolved-title">${incident.title}</strong>
+                                </div>
+                                <div class="incident-meta">
+                                    <span>Originally: ${incident.severity} | By: ${incident.createdBy || 'Anonymous'}</span>
+                                </div>
+                                ${incident.resolutionComment ? `<p class="resolution-comment"><strong>Resolved by ${incident.resolvedBy || incident.createdBy || 'Anonymous'}:</strong> ${incident.resolutionComment}</p>` : ''}
+                                <div class="auto-delete-timer">${timeRemaining}</div>
+                                <div class="incident-actions">
+                                    <button class="reopen-btn" onclick="reopenIncident(${incident.id})">Reopen</button>
+                                    <button class="delete-btn" onclick="deleteIncident(${incident.id})">Delete Now</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+            } catch (error) {
+                console.error('Error loading incidents:', error);
+                document.getElementById('incidents-container').innerHTML = 
+                    '<div class="alert">Failed to load incidents. Make sure the API is running on port 8080.</div>';
+                updateSummary([]);
+            }
+        }
+        
+        // Form Submission
+        document.getElementById('incident-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const incident = {
+                title: titleInput.value,
+                description: descInput.value || null,
+                severity: document.getElementById('severity').value,
+                createdBy: anonymousCheckbox.checked ? 'Anonymous' : reporterName.value || 'Anonymous'
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/incidents`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(incident)
+                });
+                
+                if (!response.ok) throw new Error('Failed to create incident');
+                
+                alert('Incident reported successfully!');
+                
+                // Reset form
+                e.target.reset();
+                titleCounter.textContent = '0/200 characters';
+                descCounter.textContent = '0/1000 characters';
+                
+                // Reload incidents
+                loadIncidents();
+                
+            } catch (error) {
+                console.error('Error creating incident:', error);
+                alert('Failed to create incident. Please try again.');
+            }
+        });
+        
+        // Load incidents on page load
+        loadIncidents();
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadIncidents, 30000);
+
+        // Chart instances
+        let incidentsOverTimeChart = null;
+        let employeeChart = null;
+        let previousIncidentCount = 0;
+        let previousResolvedCount = 0;
+
+        // Update Charts with animation
+        function updateCharts(incidents) {
+            const currentCount = incidents.length;
+            const currentResolved = incidents.filter(i => i.status === 'RESOLVED').length;
+            
+            // Check if data changed for visual feedback
+            const dataChanged = currentCount !== previousIncidentCount || currentResolved !== previousResolvedCount;
+            
+            updateIncidentsOverTimeChart(incidents, dataChanged);
+            updateEmployeeChart(incidents, dataChanged);
+            
+            previousIncidentCount = currentCount;
+            previousResolvedCount = currentResolved;
+        }
+
+        // Incidents Over Time Line Chart
+        function updateIncidentsOverTimeChart(incidents, animate = false) {
+            const ctx = document.getElementById('incidentsOverTimeChart').getContext('2d');
+            
+            // Group incidents by hour (last 24 hours)
+            const now = new Date();
+            const hours = [];
+            const counts = [];
+            
+            for (let i = 23; i >= 0; i--) {
+                const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
+                const hourLabel = hour.getHours().toString().padStart(2, '0') + ':00';
+                hours.push(hourLabel);
+                
+                // Count incidents created in this hour
+                const count = incidents.filter(inc => {
+                    const created = new Date(inc.createdAt);
+                    return created.getHours() === hour.getHours() && 
+                           created.getDate() === hour.getDate();
+                }).length;
+                counts.push(count);
+            }
+            
+            if (incidentsOverTimeChart) {
+                incidentsOverTimeChart.data.labels = hours;
+                incidentsOverTimeChart.data.datasets[0].data = counts;
+                
+                // Trigger animation on data change
+                if (animate) {
+                    incidentsOverTimeChart.options.animation = {
+                        duration: 800,
+                        easing: 'easeOutBounce'
+                    };
+                    // Flash effect on chart container
+                    const container = document.getElementById('incidentsOverTimeChart').closest('.chart-container');
+                    container.classList.add('chart-updated');
+                    setTimeout(() => container.classList.remove('chart-updated'), 1000);
+                }
+                
+                incidentsOverTimeChart.update(animate ? 'active' : 'none');
+            } else {
+                incidentsOverTimeChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: hours,
+                        datasets: [{
+                            label: 'Incidents Created',
+                            data: counts,
+                            borderColor: '#ff6b6b',
+                            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#ff6b6b',
+                            pointBorderColor: '#fff',
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                labels: { color: '#e0e0e0' }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                                titleColor: '#ff6b6b',
+                                bodyColor: '#e0e0e0',
+                                borderColor: '#ff6b6b',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#9ca3af' },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: '#9ca3af',
+                                    stepSize: 1
+                                },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Employee Resolution Leaderboard Chart
+        function updateEmployeeChart(incidents, animate = false) {
+            const ctx = document.getElementById('employeeChart').getContext('2d');
+            
+            // Count resolutions per employee
+            const resolvedIncidents = incidents.filter(i => i.status === 'RESOLVED' && i.resolvedBy);
+            const employeeCounts = {};
+            
+            resolvedIncidents.forEach(inc => {
+                const name = inc.resolvedBy;
+                employeeCounts[name] = (employeeCounts[name] || 0) + 1;
+            });
+            
+            // Sort by count and get top performers
+            const sorted = Object.entries(employeeCounts)
+                .sort((a, b) => b[1] - a[1]);
+            
+            const names = sorted.map(e => e[0]);
+            const counts = sorted.map(e => e[1]);
+            
+            // Update Employee of the Month with animation
+            const employeeCard = document.querySelector('.employee-of-month');
+            if (sorted.length > 0) {
+                const newName = sorted[0][0];
+                const newStats = `${sorted[0][1]} incident${sorted[0][1] > 1 ? 's' : ''} resolved`;
+                const currentName = document.getElementById('top-resolver-name').textContent;
+                
+                if (currentName !== newName && currentName !== '--') {
+                    // New employee of the month - big animation!
+                    employeeCard.classList.add('new-champion');
+                    setTimeout(() => employeeCard.classList.remove('new-champion'), 2000);
+                }
+                
+                document.getElementById('top-resolver-name').textContent = newName;
+                document.getElementById('top-resolver-stats').textContent = newStats;
+                
+                if (animate) {
+                    employeeCard.classList.add('stats-updated');
+                    setTimeout(() => employeeCard.classList.remove('stats-updated'), 800);
+                }
+            } else {
+                document.getElementById('top-resolver-name').textContent = '--';
+                document.getElementById('top-resolver-stats').textContent = 'No resolutions yet';
+            }
+            
+            // Generate colors for bars
+            const colors = names.map((_, i) => {
+                if (i === 0) return '#fbbf24'; // Gold for top
+                if (i === 1) return '#9ca3af'; // Silver
+                if (i === 2) return '#cd7f32'; // Bronze
+                return '#6366f1'; // Purple for others
+            });
+            
+            if (employeeChart) {
+                employeeChart.data.labels = names;
+                employeeChart.data.datasets[0].data = counts;
+                employeeChart.data.datasets[0].backgroundColor = colors;
+                
+                // Trigger animation on data change
+                if (animate) {
+                    employeeChart.options.animation = {
+                        duration: 800,
+                        easing: 'easeOutBounce'
+                    };
+                    // Flash effect on chart container
+                    const container = document.getElementById('employeeChart').closest('.chart-container');
+                    container.classList.add('chart-updated');
+                    setTimeout(() => container.classList.remove('chart-updated'), 1000);
+                }
+                
+                employeeChart.update(animate ? 'active' : 'none');
+            } else {
+                employeeChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: names,
+                        datasets: [{
+                            label: 'Incidents Resolved',
+                            data: counts,
+                            backgroundColor: colors,
+                            borderColor: colors.map(c => c),
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'y',
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                                titleColor: '#fbbf24',
+                                bodyColor: '#e0e0e0',
+                                borderColor: '#fbbf24',
+                                borderWidth: 1,
+                                padding: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.raw} incident${context.raw > 1 ? 's' : ''} resolved`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: { 
+                                    color: '#9ca3af',
+                                    stepSize: 1
+                                },
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                            },
+                            y: {
+                                ticks: { color: '#e0e0e0' },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

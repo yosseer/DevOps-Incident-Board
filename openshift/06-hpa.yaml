@@ -1,0 +1,59 @@
+# ============================================================================
+# OpenShift Horizontal Pod Autoscaler
+# DevOps Incident Board
+# ============================================================================
+
+# Backend HPA
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: incident-backend-hpa
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: incident-backend
+  minReplicas: 1
+  maxReplicas: 1  # H2 database only supports single instance (RWO volume)
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+# Frontend HPA
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: incident-frontend-hpa
+  namespace: incident-board-containers
+  labels:
+    app: incident-frontend
+    app.kubernetes.io/part-of: devops-incident-board
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: incident-frontend
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

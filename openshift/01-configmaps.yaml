@@ -1,0 +1,58 @@
+# ============================================================================
+# OpenShift ConfigMap - Backend Configuration
+# DevOps Incident Board
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-backend-config
+  namespace: incident-board-containers
+  labels:
+    app: incident-backend
+    app.kubernetes.io/name: incident-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: devops-incident-board
+data:
+  # Spring Boot configuration
+  SPRING_PROFILES_ACTIVE: "openshift"
+  SERVER_PORT: "8080"
+  
+  # Database configuration (H2 file-based)
+  SPRING_DATASOURCE_URL: "jdbc:h2:file:/app/data/incidentboard;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.h2.Driver"
+  SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.H2Dialect"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_JPA_SHOW_SQL: "false"
+  
+  # H2 Console (for debugging - disable in production)
+  SPRING_H2_CONSOLE_ENABLED: "true"
+  SPRING_H2_CONSOLE_PATH: "/h2-console"
+  SPRING_H2_CONSOLE_SETTINGS_WEB_ALLOW_OTHERS: "true"
+  
+  # Logging
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_COM_REDHAT_TRAINING_BEEPER: "DEBUG"
+  
+  # Actuator endpoints for health checks
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+
+---
+# ============================================================================
+# OpenShift ConfigMap - Frontend Configuration
+# DevOps Incident Board
+# ============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incident-frontend-config
+  namespace: incident-board-containers
+  labels:
+    app: incident-frontend
+    app.kubernetes.io/name: incident-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: devops-incident-board
+data:
+  # API URL - Uses relative path for Nginx proxy
+  # Nginx proxies /api/* to incident-backend:8080/api/*
+  API_BASE_URL: "/api"
